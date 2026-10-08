@@ -10,12 +10,12 @@ verdicts = []
 KEYWORDS = ["urgent", "verify", "suspended", "password", "expires", "act now",
             "congratulations", "winner", "claim", "immediately", "gift card"]
 
-def check_mail(folder="/home/lgarcia/mail_export/", flagged=[]):
+def check_mail(folder, flagged=[]):
     files = os.listdir(folder)
     for fn in files:
         if not fn.endswith(".eml"):
             continue
-        raw = open(folder + "/" + fn, encoding="utf-8", errors="ignore").read()
+        raw = open(os.path.join(folder, fn), encoding="utf-8", errors="ignore").read()
         s = 0
         try:
             frm = re.search("From: (.*)", raw).group(1)
@@ -25,17 +25,21 @@ def check_mail(folder="/home/lgarcia/mail_export/", flagged=[]):
             subj = re.search("Subject: (.*)", raw).group(1)
         except:
             subj = "?"
+            
         low = raw.lower()
         for kw in KEYWORDS:
             if kw in low:
                 s = s + 1
+                
         # links that look bad
         urls = re.findall("https?://[^\\s\"'<>]+", raw)
+        
         for u in urls:
             if re.match("https?://[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+", u):
                 s = s + 3  # ip address url, very bad
             if "xn--" in u:
                 s = s + 3
+                
         # sender says paypal/microsoft/amazon but domain is weird
         if "paypal" in frm.lower() and "paypal.com" not in frm.lower():
             s = s + 3
@@ -45,6 +49,7 @@ def check_mail(folder="/home/lgarcia/mail_export/", flagged=[]):
             s = s + 3
         if "spf=fail" in low or "dmarc=fail" in low:
             s = s + 2
+            
         # reply-to different from from
         try:
             rt = re.search("Reply-To: (.*)", raw).group(1)
@@ -54,7 +59,9 @@ def check_mail(folder="/home/lgarcia/mail_export/", flagged=[]):
                 s = s + 2
         except:
             pass
+        
         scores[fn] = s
+        
         if s >= 5:
             verdicts.append((fn, "PHISHING", s))
             flagged.append(fn)
@@ -62,16 +69,21 @@ def check_mail(folder="/home/lgarcia/mail_export/", flagged=[]):
             verdicts.append((fn, "suspicious", s))
         else:
             verdicts.append((fn, "ok", s))
+            
     print("checked", len(scores), "mails")
+    
     for v in verdicts:
         print(" ", v[0], "->", v[1], "(score", str(v[2]) + ")")
+        
     out = open("results.txt", "w")
     out.write(str(verdicts))
     out.close()
+    
     print("flagged:", flagged)
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        check_mail(sys.argv[1])
-    else:
-        check_mail()
+    if len(sys.argv) != 2: 
+        print("usage: python triage.py <folder-with-eml-files>", file=sys.stderr)
+        sys.exit(2)
+        
+    check_mail(sys.argv[1])
