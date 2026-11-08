@@ -13,6 +13,8 @@ W_REPLY_TO_MISMATCH = 2
 PHISHING_THRESHOLD = 5
 SUSPICIOUS_THRESHOLD = 3
 
+BRANDS = ["paypal", "microsoft", "amazon"]
+
 KEYWORDS = ["urgent", "verify", "suspended", "password", "expires", "act now",
             "congratulations", "winner", "claim", "immediately", "gift card"]
 
@@ -66,12 +68,10 @@ def check_mail(folder, flagged=None):
                 s = s + W_PUNYCODE_LINK
                 
         # sender says paypal/microsoft/amazon but domain is weird
-        if "paypal" in frm.lower() and "paypal.com" not in frm.lower():
-            s = s + W_BRAND_MISMATCH
-        if "microsoft" in frm.lower() and "microsoft.com" not in frm.lower():
-            s = s + W_BRAND_MISMATCH
-        if "amazon" in frm.lower() and "amazon.com" not in frm.lower():
-            s = s + W_BRAND_MISMATCH
+        for brand in BRANDS:
+            if brand in frm.lower() and f"{brand}.com" not in frm.lower():
+                s = s + W_BRAND_MISMATCH
+            
         if "spf=fail" in low or "dmarc=fail" in low:
             s = s + W_AUTH_FAIL
             
