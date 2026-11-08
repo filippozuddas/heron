@@ -1,5 +1,3 @@
-# quick phishing checker for the mail export - L. Garcia, march 2025
-# TODO: make this nicer at some point
 import re
 import os
 import sys
@@ -51,7 +49,6 @@ def check_mail(folder, flagged=None):
         s = 0
         
         frm = header(raw, "From")
-        subj = header(raw, "Subject")
         low = raw.lower()
         
         for kw in KEYWORDS:
@@ -91,7 +88,7 @@ def check_mail(folder, flagged=None):
         else:
             verdicts.append((fn, "ok", s))
             
-    print("checked", len(scores), "mails")
+    print("checked", len(verdicts), "mails")
     
     for v in verdicts:
         print(" ", v[0], "->", v[1], "(score", str(v[2]) + ")")
