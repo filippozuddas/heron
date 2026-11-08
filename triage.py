@@ -4,9 +4,6 @@ import re
 import os
 import sys
 
-KEYWORDS = ["urgent", "verify", "suspended", "password", "expires", "act now",
-            "congratulations", "winner", "claim", "immediately", "gift card"]
-
 W_KEYWORD = 1
 W_IP_LINK = 3
 W_PUNYCODE_LINK = 3
@@ -15,6 +12,24 @@ W_AUTH_FAIL = 2
 W_REPLY_TO_MISMATCH = 2
 PHISHING_THRESHOLD = 5
 SUSPICIOUS_THRESHOLD = 3
+
+KEYWORDS = ["urgent", "verify", "suspended", "password", "expires", "act now",
+            "congratulations", "winner", "claim", "immediately", "gift card"]
+
+
+def header(raw, name):
+    """Return the value of the first "name:" header line, or "?" if there is none."""
+    match = re.search(name + ": (.*)", raw)
+    if match is None:
+        return "?"
+    return match.group(1)
+
+def sender_domain(address):
+    """Return the email address domain or None if `@` is missing."""
+    match = re.search("@([a-zA-Z0-9.-]+)", address)
+    if match is None:
+        return None
+    return match.group(1)
 
 def check_mail(folder, flagged=None):
     if flagged is None: 
@@ -32,16 +47,11 @@ def check_mail(folder, flagged=None):
             raw = f.read()
     
         s = 0
-        try:
-            frm = re.search("From: (.*)", raw).group(1)
-        except:
-            frm = "?"
-        try:
-            subj = re.search("Subject: (.*)", raw).group(1)
-        except:
-            subj = "?"
-            
+        
+        frm = header(raw, "From")
+        subj = header(raw, "Subject")
         low = raw.lower()
+        
         for kw in KEYWORDS:
             if kw in low:
                 s = s + W_KEYWORD
@@ -66,14 +76,10 @@ def check_mail(folder, flagged=None):
             s = s + W_AUTH_FAIL
             
         # reply-to different from from
-        try:
-            rt = re.search("Reply-To: (.*)", raw).group(1)
-            m1 = re.search("@([a-zA-Z0-9.-]+)", frm).group(1)
-            m2 = re.search("@([a-zA-Z0-9.-]+)", rt).group(1)
-            if m1 != m2:
-                s = s + W_REPLY_TO_MISMATCH
-        except:
-            pass
+        from_domain = sender_domain(frm)
+        reply_domain = sender_domain(header(raw, "Reply-To"))
+        if from_domain and reply_domain and from_domain != reply_domain:
+            s = s + W_REPLY_TO_MISMATCH
         
         scores[fn] = s
         
@@ -95,11 +101,14 @@ def check_mail(folder, flagged=None):
     
     print("flagged:", flagged)
     
-    return verdicts
-
+    
 if __name__ == "__main__":
     if len(sys.argv) != 2: 
         print("usage: python triage.py <folder-with-eml-files>", file=sys.stderr)
         sys.exit(2)
         
-    verdicts = check_mail(sys.argv[1])
+    try:
+        check_mail(sys.argv[1])
+    except FileNotFoundError: 
+        print("error: no such folder", file=sys.stderr)
+        sys.exit(2)
